@@ -84,7 +84,7 @@
     }
 
     // ---- SCREEN MANAGEMENT ----
-    const ALL_SCREENS = ["startMenu", "optionsScreen", "exitScreen", "typeMenu", "modeMenuNormal", "modeMenuWicked",
+    const ALL_SCREENS = ["startMenu", "optionsScreen", "historyScreen", "exitScreen", "typeMenu", "modeMenuNormal", "modeMenuWicked",
       "playerNamesScreen", "teamAssignmentScreen", "questionGroupsScreen", "gameScreen",
       "soloMenuScreen", "soloGameScreen", "soloGameOverScreen",
       "thirtyRulesScreen", "thirtyCategoryScreen", "thirtyGameScreen", "endGameScreen"];
@@ -107,7 +107,7 @@
       if (gameBtn) {
         gameBtn.classList.toggle("hidden", screenId !== "gameScreen" && screenId !== "thirtyGameScreen" && screenId !== "soloGameScreen");
       }
-      ["gameOptionsModal", "exitConfirmModal"].forEach(id => {
+      ["gameOptionsModal", "exitConfirmModal", "historyConfirmModal"].forEach(id => {
         document.getElementById(id).classList.add("hidden");
       });
     }
@@ -357,12 +357,85 @@
       document.getElementById("soloNewRecord").classList.toggle("hidden", !newRecord);
       document.getElementById("soloOverEmoji").innerText = newRecord ? "👑" : "💥";
 
+      addHistoryEntry({ type: "solo", mode: "solo", score: finalScore });
       soloState = null;
       showScreen("soloGameOverScreen");
       if (newRecord) {
         startConfetti();
         sfx("victory");
       }
+    }
+
+    // ===================== HISTORY (سجل الألعاب) =====================
+    const HISTORY_KEY = "triviatyHistory";
+    const HISTORY_MAX = 50;
+    const MODE_LABELS = {
+      ffa: "لعبة عادية — مفتوحة للجميع",
+      teams: "لعبة عادية — فريقين",
+      teamsHost: "لعبة عادية — فريقين ومضيف",
+      wickedFfa: "لعبة خبيثة — مفتوحة للجميع",
+      wickedTeams: "لعبة خبيثة — فريقين",
+      wickedTeamsHost: "لعبة خبيثة — فريقين ومضيف",
+      thirty: "تحدي الثلاثين",
+      solo: "لعبة فردية"
+    };
+
+    function getHistory() {
+      try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; } catch (e) { return []; }
+    }
+
+    function addHistoryEntry(entry) {
+      const history = getHistory();
+      history.unshift({ date: Date.now(), ...entry });
+      try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, HISTORY_MAX))); } catch (e) {}
+    }
+
+    function formatHistoryDate(ts) {
+      const d = new Date(ts);
+      const pad = n => String(n).padStart(2, "0");
+      return pad(d.getDate()) + "/" + pad(d.getMonth() + 1) + "/" + d.getFullYear() + " — " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+    }
+
+    function openHistory() {
+      renderHistory();
+      showScreen("historyScreen");
+    }
+
+    function renderHistory() {
+      const list = document.getElementById("historyList");
+      const clearBtn = document.getElementById("clearHistoryBtn");
+      const history = getHistory();
+      if (!history.length) {
+        list.innerHTML = `<p class="historyEmpty">لا توجد ألعاب مسجلة بعد — العبوا أول لعبة!</p>`;
+        clearBtn.style.display = "none";
+        return;
+      }
+      clearBtn.style.display = "block";
+      list.innerHTML = history.map(entry => {
+        const title = entry.type === "solo"
+          ? "🔥 " + entry.score + " إجابة صحيحة"
+          : "🏆 " + entry.winner + " — " + entry.points + " نقطة";
+        const sub = (MODE_LABELS[entry.mode] || entry.mode) + " · " + formatHistoryDate(entry.date);
+        return `<div class="historyRow"><div class="historyTitle">${title}</div><div class="historySub">${sub}</div></div>`;
+      }).join("");
+    }
+
+    function clearHistory() {
+      if (!getHistory().length) return;
+      document.getElementById("historyConfirmModal").classList.remove("hidden");
+      sfx("click");
+    }
+
+    function confirmClearHistory() {
+      try { localStorage.removeItem(HISTORY_KEY); } catch (e) {}
+      document.getElementById("historyConfirmModal").classList.add("hidden");
+      renderHistory();
+      sfx("click");
+    }
+
+    function cancelClearHistory() {
+      document.getElementById("historyConfirmModal").classList.add("hidden");
+      sfx("click");
     }
 
     function selectMode(mode) {
@@ -798,6 +871,7 @@
       showScreen("gameScreen");
       buildBoard();
       updateTurnBanner();
+      updateRandomPickBtn();
     }
 
     function goBackFromGroups() {
@@ -873,6 +947,7 @@
       document.getElementById("board").style.display = "none";
       document.querySelector(".scores").style.display = "none";
       document.getElementById("turnBanner").style.display = "none";
+      document.getElementById("randomPickBtn").style.display = "none";
 
       document.getElementById("questionBox").innerText = currentQuestion.question;
       document.getElementById("answerBox").innerText = "";
@@ -1034,6 +1109,36 @@
       document.getElementById("board").style.display = "block";
       document.querySelector(".scores").style.display = "flex";
       document.getElementById("turnBanner").style.display = "block";
+      updateRandomPickBtn();
+    }
+
+    // Random question picker — host modes only
+    function updateRandomPickBtn() {
+      const btn = document.getElementById("randomPickBtn");
+      if (!btn) return;
+      btn.style.display = HOST_MODES.includes(lastModeRequested) ? "inline-block" : "none";
+    }
+
+    function pickRandomQuestion() {
+      if (actionLocked || !HOST_MODES.includes(lastModeRequested)) return;
+      const cells = [...document.querySelectorAll("#board td.cell:not(.used)")];
+      if (!cells.length) return;
+      // Group remaining cells by points; pick from the easiest tier first
+      const byPoints = {};
+      cells.forEach(cell => {
+        const id = cell.id || "";
+        const dash = id.lastIndexOf("-");
+        if (dash < 0) return;
+        const points = parseInt(id.slice(dash + 1), 10);
+        const group = id.slice("cell-".length, dash);
+        if (isFinite(points)) (byPoints[points] = byPoints[points] || []).push({ group, points });
+      });
+      const tiers = Object.keys(byPoints).map(Number).sort((a, b) => a - b);
+      if (!tiers.length) return;
+      const easiest = byPoints[tiers[0]];
+      const chosen = easiest[Math.floor(Math.random() * easiest.length)];
+      sfx("click");
+      selectQuestion(chosen.group, chosen.points);
     }
 
     function markQuestionAsUsed() {
@@ -1043,6 +1148,8 @@
         cell.onclick = null;
         if (lastAnsweringTeam !== null && lastAnsweringTeam !== undefined) {
           cell.innerText = teamNames[lastAnsweringTeam];
+        } else {
+          cell.innerText = "0"; // skipped question -> no points for anyone
         }
       }
     }
@@ -1083,26 +1190,116 @@
       document.getElementById("teamButtons").style.display = "none";
       document.getElementById("skipBtn").style.display = "none";
       document.getElementById("timerBox").innerText = "";
+      document.getElementById("randomPickBtn").style.display = "none";
 
-      const entries = Object.keys(scores)
-        .map(key => ({ name: teamNames[key], points: scores[key] }))
-        .sort((a, b) => b.points - a.points);
+      const entries = computeStandings();
       const top = entries[0].points;
       const winners = entries.filter(entry => entry.points === top);
-      const tie = winners.length > 1;
 
-      document.getElementById("winnerLabel").innerText = tie ? "🤝 تعادل!" : "🏆 الفائز";
-      document.getElementById("winnerName").innerText = tie ? winners.map(w => w.name).join(" و ") : winners[0].name;
-      document.getElementById("winnerPoints").innerText = top + " نقطة";
+      // Draw at the top -> sudden death (board modes only)
+      if (winners.length > 1 && lastModeRequested !== "thirty") {
+        startSuddenDeath(winners);
+        return;
+      }
+      renderEndScreen(winners.map(w => w.name).join(" و "), top, winners.length > 1);
+    }
+
+    function computeStandings() {
+      return Object.keys(scores)
+        .map(key => ({ name: teamNames[key], points: scores[key] }))
+        .sort((a, b) => b.points - a.points);
+    }
+
+    function renderEndScreen(winnerName, winnerPoints, isTie) {
+      const entries = computeStandings();
+      document.getElementById("winnerLabel").innerText = isTie ? "🤝 تعادل!" : "🏆 الفائز";
+      document.getElementById("winnerName").innerText = winnerName;
+      document.getElementById("winnerPoints").innerText = winnerPoints + " نقطة";
       document.getElementById("finalStandings").innerHTML = entries.map((entry, index) =>
-        `<div class="standingRow${entry.points === top ? " winnerRow" : ""}">` +
+        `<div class="standingRow${entry.points === winnerPoints ? " winnerRow" : ""}">` +
         `<span class="standingName">${MEDALS[index] || (index + 1) + "."} ${entry.name}</span>` +
         `<span class="standingPoints">${entry.points}</span></div>`
       ).join("");
 
+      addHistoryEntry({
+        type: "game",
+        mode: lastModeRequested || "teams",
+        winner: winnerName,
+        points: winnerPoints
+      });
       showScreen("endGameScreen");
       startConfetti();
       sfx("victory");
+    }
+
+    // ---- SUDDEN DEATH (draw breaker) ----
+    let suddenDeathState = null;
+
+    function startSuddenDeath(winners) {
+      suddenDeathState = {
+        contenders: winners.map(w => {
+          const key = Object.keys(teamNames).find(k => teamNames[k] === w.name);
+          return { name: w.name, key };
+        }),
+        usedKeys: new Set()
+      };
+      document.getElementById("board").style.display = "none";
+      document.querySelector(".scores").style.display = "none";
+      document.getElementById("turnBanner").style.display = "none";
+      document.getElementById("questionBox").innerText = "⚡ تعادل! موت مفاجئ — أول إجابة صحيحة تحسم الفوز";
+      sfx("event");
+      nextSuddenDeathQuestion();
+    }
+
+    function nextSuddenDeathQuestion() {
+      if (!suddenDeathState) return;
+      // 500-point questions first, then fall back to easier tiers
+      let q = null;
+      for (const pts of [500, 400, 300, 200, 100]) {
+        const pool = questions.filter(x =>
+          selectedGroups.includes(x.group) && x.points === pts &&
+          !suddenDeathState.usedKeys.has(x.group + "|" + x.points + "|" + x.question)
+        );
+        if (pool.length) {
+          q = pool[Math.floor(Math.random() * pool.length)];
+          break;
+        }
+      }
+      if (!q) {
+        // Questions exhausted: declare the tie as before
+        const names = suddenDeathState.contenders.map(c => c.name).join(" و ");
+        suddenDeathState = null;
+        renderEndScreen(names, computeStandings()[0].points, true);
+        return;
+      }
+
+      suddenDeathState.usedKeys.add(q.group + "|" + q.points + "|" + q.question);
+      currentQuestion = q;
+      document.getElementById("questionBox").innerText = q.question;
+      document.getElementById("answerBox").innerText = "";
+      document.getElementById("teamButtons").innerHTML =
+        suddenDeathState.contenders.map((c, i) =>
+          `<button class="teamBtn" onclick="suddenDeathWin(${i})">${c.name} أجاب صحيحاً</button>`
+        ).join("") +
+        `<button class="teamBtn" onclick="suddenDeathNobody()">لا أحد أجاب</button>`;
+      document.getElementById("teamButtons").style.display = "block";
+    }
+
+    function suddenDeathWin(idx) {
+      if (!suddenDeathState) return;
+      const winner = suddenDeathState.contenders[idx];
+      if (!winner) return;
+      if (winner.key !== null && winner.key !== undefined) scores[winner.key] += 500;
+      updateScores();
+      suddenDeathState = null;
+      sfx("success");
+      renderEndScreen(winner.name, computeStandings()[0].points, false);
+    }
+
+    function suddenDeathNobody() {
+      if (!suddenDeathState) return;
+      sfx("fail");
+      nextSuddenDeathQuestion();
     }
 
     function resetGameState() {
@@ -1130,6 +1327,7 @@
       thirtySelectedCategories = [];
       rouletteState = null;
       soloState = null;
+      suddenDeathState = null;
       hideThirtyAnswers();
       stopConfetti();
       document.getElementById("board").innerHTML = "";
@@ -1601,7 +1799,7 @@
     // players never get stuck on an old version.
     if ("serviceWorker" in navigator) {
       // The ?v= query forces the browser AND CDNs to fetch a fresh sw.js on update
-      navigator.serviceWorker.register("sw.js?v=10").catch(() => {});
+      navigator.serviceWorker.register("sw.js?v=13").catch(() => {});
       try {
         navigator.serviceWorker.addEventListener("controllerchange", () => {
           if (!sessionStorage.getItem("triviatyReloaded")) {
