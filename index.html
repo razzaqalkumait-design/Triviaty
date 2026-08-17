@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Triviaty</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Triviaty">
+  <meta name="theme-color" content="#0B0E1A">
+  <link rel="icon" href="icon.png">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="manifest" href="manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Tajawal:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css?v=9">
+</head>
+<body>
+
+  <canvas id="confettiCanvas"></canvas>
+
+  <!-- Mid-game options button -->
+  <button id="gameOptionsBtn" class="gameOptionsBtn hidden" onclick="openGameOptions()">⚙️</button>
+
+  <!-- Mid-game options modal -->
+  <div id="gameOptionsModal" class="modalOverlay hidden">
+    <div class="modalBox">
+      <h3 class="modalTitle">خيارات</h3>
+      <button id="gameOptionsSoundBtn" class="menuBtn secondary" onclick="toggleSound();syncSoundButtons();">🔊 تشغيل</button>
+      <button class="menuBtn secondary danger" onclick="askExitGame()">خروج من اللعبة</button>
+      <button class="menuBtn" onclick="closeGameOptions()">استمرار اللعب</button>
+    </div>
+  </div>
+
+  <!-- Exit confirmation modal -->
+  <div id="exitConfirmModal" class="modalOverlay hidden">
+    <div class="modalBox">
+      <h3 class="modalTitle">هل أنت متأكد أنك تريد الخروج؟</h3>
+      <button class="menuBtn secondary danger" onclick="confirmExitGame()">نعم، خروج</button>
+      <button class="menuBtn secondary" onclick="cancelExitGame()">إلغاء</button>
+    </div>
+  </div>
+
+  <div class="app">
+    <h1>TRIVIATY</h1>
+
+    <!-- START MENU -->
+    <div id="startMenu" class="menuScreen">
+      <h2>مرحباً</h2>
+      <button class="menuBtn" onclick="showScreen('typeMenu')">ابدأ اللعبة</button>
+      <button class="menuBtn secondary" onclick="openOptions()">خيارات</button>
+      <button class="menuBtn secondary danger" onclick="exitGame()">خروج</button>
+    </div>
+
+    <!-- OPTIONS -->
+    <div id="optionsScreen" class="menuScreen hidden">
+      <h2>خيارات</h2>
+      <div class="optionsList">
+        <div class="optionRow">
+          <div class="optionLabel">الصوت</div>
+          <button id="optionsSoundBtn" class="segBtn wide" onclick="toggleSound();renderOptionsScreen();">🔊 تشغيل</button>
+        </div>
+        <div class="optionRow">
+          <div class="optionLabel">مدة مؤقت السؤال</div>
+          <div class="segGroup" id="timerGroup"></div>
+        </div>
+        <div class="optionRow">
+          <div class="optionLabel">جولات تحدي الثلاثين</div>
+          <div class="segGroup" id="roundsGroup"></div>
+        </div>
+      </div>
+      <button class="backBtn" onclick="showScreen('startMenu')">الرجوع</button>
+    </div>
+
+    <!-- EXIT -->
+    <div id="exitScreen" class="menuScreen hidden">
+      <div class="trophy">👋</div>
+      <h2>شكراً للعبكم!</h2>
+      <p id="exitHint" style="color: var(--text-dim); margin-bottom: 26px;">أغلق نافذة التطبيق أو عد إلى القائمة</p>
+      <button class="menuBtn" onclick="closeApp()">إغلاق التطبيق</button>
+      <button class="menuBtn secondary" onclick="showScreen('startMenu')">العودة للعبة</button>
+    </div>
+
+    <!-- GAME TYPE MENU -->
+    <div id="typeMenu" class="menuScreen hidden">
+      <h2>اختر نمط اللعبة</h2>
+      <button class="menuBtn" onclick="showScreen('modeMenuNormal')">لعبة عادية</button>
+      <button class="menuBtn" onclick="showScreen('modeMenuWicked')">لعبة خبيثة</button>
+      <button class="menuBtn" onclick="showThirtyChallenge()">تحدي الثلاثين</button>
+      <button class="menuBtn" onclick="openSoloMenu()">لعبة فردية</button>
+      <button class="backBtn" onclick="showScreen('startMenu')">الرجوع</button>
+    </div>
+
+    <!-- NORMAL MODE MENU -->
+    <div id="modeMenuNormal" class="menuScreen hidden">
+      <h2>لعبة عادية — اختر النمط</h2>
+      <button class="menuBtn" onclick="selectMode('ffa')">مفتوحة للجميع</button>
+      <button class="menuBtn" onclick="selectMode('teams')">فريقين</button>
+      <button class="menuBtn" onclick="selectMode('teamsHost')">فريقين و مضيف</button>
+      <button class="backBtn" onclick="showScreen('typeMenu')">الرجوع</button>
+    </div>
+
+    <!-- WICKED MODE MENU -->
+    <div id="modeMenuWicked" class="menuScreen hidden">
+      <h2>لعبة خبيثة — اختر النمط</h2>
+      <button class="menuBtn" onclick="selectMode('wickedFfa')">مفتوحة للجميع</button>
+      <button class="menuBtn" onclick="selectMode('wickedTeams')">فريقين</button>
+      <button class="menuBtn" onclick="selectMode('wickedTeamsHost')">فريقين و مضيف</button>
+      <button class="backBtn" onclick="showScreen('typeMenu')">الرجوع</button>
+    </div>
+
+    <!-- PLAYER NAMES -->
+    <div id="playerNamesScreen" class="menuScreen hidden">
+      <h2>أدخل أسماء اللاعبين</h2>
+      <div id="playerInputsContainer"></div>
+      <button class="menuBtn" id="addPlayerBtn" onclick="addPlayerInput()">+ أضف لاعب</button>
+      <button class="menuBtn" onclick="formTeams()">العب الآن</button>
+      <button class="backBtn" onclick="goBackFromPlayerNames()">الرجوع</button>
+    </div>
+
+    <!-- QUESTION GROUPS -->
+    <div id="questionGroupsScreen" class="menuScreen hidden">
+      <h2>اختر مجموعات الأسئلة</h2>
+      <p id="groupsHint">اختر بين 2 و 8 مجموعات</p>
+      <div id="groupsContainer"></div>
+      <button class="backBtn" onclick="goBackFromGroups()">الرجوع</button>
+    </div>
+    <div id="groupsStickyBar" class="stickyBar hidden">
+      <button class="menuBtn" onclick="startGameWithSelectedGroups()">ابدأ اللعبة</button>
+    </div>
+
+    <!-- TEAM ASSIGNMENT (ROULETTE) -->
+    <div id="teamAssignmentScreen" class="menuScreen hidden">
+      <h2 id="teamAssignTitle">عجلة الفرق</h2>
+
+      <!-- Roulette -->
+      <div id="roulettePanel">
+        <div id="rouletteWrap">
+          <canvas id="rouletteCanvas"></canvas>
+          <div id="rouletteHub">
+            <div id="rouletteHubTeam"></div>
+            <button id="rouletteSpinBtn" onclick="spinRoulette()">لفّ!</button>
+          </div>
+        </div>
+        <p id="rouletteStatus"></p>
+      </div>
+
+      <!-- Final teams -->
+      <div id="teamsResultPanel" class="hidden">
+        <div class="teamAssignRow">
+          <div class="teamAssignCol">
+            <h3 id="teamName1">الفريق 1</h3>
+            <ul id="teamList1"></ul>
+          </div>
+          <div class="teamAssignCol">
+            <h3 id="teamName2">الفريق 2</h3>
+            <ul id="teamList2"></ul>
+          </div>
+        </div>
+        <button class="menuBtn" onclick="rouletteAgain()">إعادة التوزيع</button>
+        <button class="menuBtn" onclick="startGameWithTeams()">ابدأ اللعبة</button>
+        <button class="backBtn" onclick="showScreen('playerNamesScreen')">الرجوع</button>
+      </div>
+    </div>
+
+    <!-- GAME SCREEN -->
+    <div id="gameScreen" class="hidden">
+      <div class="scores">
+        <div><span id="teamLabel1">الفريق 1</span>: <span id="score1">0</span></div>
+        <div><span id="teamLabel2">الفريق 2</span>: <span id="score2">0</span></div>
+      </div>
+      <div id="turnBanner"></div>
+      <div id="timerBox"></div>
+      <button id="skipBtn" onclick="skipTimer()" style="display:none;">انهاء الوقت</button>
+      <div id="board"></div>
+      <p id="questionBox"></p>
+      <p id="answerBox"></p>
+      <div id="teamButtons" style="display:none;"></div>
+    </div>
+
+    <!-- THIRTY CHALLENGE: RULES -->
+    <div id="thirtyRulesScreen" class="menuScreen hidden">
+      <h2>تحدي الثلاثين</h2>
+      <div class="thirtyRules">
+        <p>👥 يلعبها لاعبان فقط</p>
+        <p>🎯 تختارون فئة واحدة للعب بها</p>
+        <p id="thirtyRoundsRule">🔟 10 جولات، في كل جولة سؤال جديد</p>
+        <p>💰 يزايد اللاعبون: من يستطيع ذكر أكبر عدد من الإجابات الصحيحة؟</p>
+        <p>⏱️ صاحب أعلى مزايدة يواجه التحدي: 30 ثانية لإثبات رقمه</p>
+        <p>✅ نجح في مزايدته → يكسب نقاطاً بقدر الرقم الذي راهن عليه</p>
+        <p>❌ فشل → صفر نقاط في هذه الجولة</p>
+        <p>📋 المضيف يحسب الإجابات الصحيحة من القائمة المعتمدة</p>
+      </div>
+      <button class="menuBtn" onclick="showThirtyCategoryScreen()">ابدأ التحدي</button>
+      <button class="backBtn" onclick="showScreen('playerNamesScreen')">الرجوع</button>
+    </div>
+
+    <!-- THIRTY CHALLENGE: CATEGORY SELECTION -->
+    <div id="thirtyCategoryScreen" class="menuScreen hidden">
+      <h2>اختر الفئات</h2>
+      <p id="thirtyCatHint">اختر فئة واحدة</p>
+      <div id="thirtyCatContainer"></div>
+      <button class="backBtn" onclick="showScreen('thirtyRulesScreen')">الرجوع</button>
+    </div>
+    <div id="thirtyStickyBar" class="stickyBar hidden">
+      <button class="menuBtn" onclick="startThirtyGame()">ابدأ التحدي</button>
+    </div>
+
+    <!-- THIRTY CHALLENGE: GAME -->
+    <div id="thirtyGameScreen" class="menuScreen hidden">
+      <div id="thirtyScores" class="scores"></div>
+      <div id="thirtyRoundLabel"></div>
+      <div id="thirtyQuestionLabel">اذكر أكبر عدد ممكن من:</div>
+      <div id="thirtyQuestionBox"></div>
+
+      <!-- Auction phase -->
+      <div id="thirtyAuctionPanel" class="hidden">
+        <div id="thirtyBidLabel">أعلى مزايدة</div>
+        <div id="thirtyBidValue">—</div>
+        <div id="thirtyTurnName"></div>
+        <div class="thirtyAuctionBtns">
+          <button class="menuBtn" onclick="thirtyRaise(1)">أزيد +1</button>
+          <button class="menuBtn" onclick="thirtyRaise(5)">أزيد +5</button>
+          <button class="menuBtn" onclick="thirtyRaise(10)">أزيد +10</button>
+        </div>
+        <button id="thirtyFoldBtn" class="thirtyFoldBtn" onclick="thirtyFold()">أنسحب</button>
+      </div>
+
+      <!-- Challenge phase -->
+      <div id="thirtyChallengePanel" class="hidden">
+        <div id="thirtyChallengeWho"></div>
+        <div id="thirtyChallengeBid"></div>
+        <div id="thirtyChallengeStartBtnWrap">
+          <button class="menuBtn" onclick="beginThirtyChallenge()">ابدأ الـ 30 ثانية</button>
+        </div>
+        <div id="thirtyChallengeLive" class="hidden">
+          <div id="thirtyTimerBox">⏱ 30</div>
+          <div id="thirtyCountBox">0 / 0</div>
+          <div class="thirtyProgress"><div id="thirtyProgressFill"></div></div>
+          <button class="thirtyPlusBtn" onclick="thirtyTapCorrect()">+1 ✅</button>
+          <div class="thirtyChallengeSmallBtns">
+            <button class="thirtySmallBtn" onclick="thirtyUndo()">تراجع -1</button>
+            <button class="thirtySmallBtn" onclick="thirtyEndEarly()">إنهاء الآن</button>
+            <button class="thirtySmallBtn" id="thirtyShowAnswersBtn" onclick="toggleThirtyAnswers()">عرض الإجابات</button>
+          </div>
+          <div id="thirtyAnswersList" class="hidden"></div>
+        </div>
+      </div>
+
+      <!-- Round result -->
+      <div id="thirtyResultBanner" class="hidden">
+        <div id="thirtyResultText"></div>
+      </div>
+    </div>
+
+    <!-- SOLO GAME MENU -->
+    <div id="soloMenuScreen" class="menuScreen hidden">
+      <h2>لعبة فردية</h2>
+      <div class="soloRules">
+        <p>🎯 أسئلة عشوائية من جميع الفئات، بدون اختيار</p>
+        <p>✅ كل إجابة صحيحة = نقطة واحدة</p>
+        <p>❌ إجابة خاطئة واحدة = نهاية اللعبة</p>
+        <p>📈 كلما زادت سلسلة إجاباتك الصحيحة، ازدادت صعوبة الأسئلة</p>
+      </div>
+      <div class="soloBestBox">🏆 أفضل نتيجة: <span id="soloBestMenu">0</span></div>
+      <button class="menuBtn" onclick="startSoloGame()">ابدأ</button>
+      <button class="backBtn" onclick="showScreen('typeMenu')">الرجوع</button>
+    </div>
+
+    <!-- SOLO GAME -->
+    <div id="soloGameScreen" class="menuScreen hidden">
+      <div class="soloHeader">
+        <div class="soloStreakBox">🔥 <span id="soloStreak">0</span></div>
+        <div id="soloTierChip" class="soloTierChip">سهل جداً</div>
+        <div class="soloBestChip">🏆 <span id="soloBestInGame">0</span></div>
+      </div>
+      <p id="soloGroupLabel"></p>
+      <p id="soloQuestionBox"></p>
+      <div id="soloOptions"></div>
+    </div>
+
+    <!-- SOLO GAME OVER -->
+    <div id="soloGameOverScreen" class="menuScreen hidden">
+      <div class="trophy" id="soloOverEmoji">💥</div>
+      <h2>انتهت اللعبة!</h2>
+      <div id="soloNewRecord" class="soloNewRecord hidden">🎉 سجل جديد!</div>
+      <div id="soloFinalScore" class="soloFinalScore"></div>
+      <div id="soloOverBest"></div>
+      <button class="menuBtn" onclick="startSoloGame()">العب مرة أخرى</button>
+      <button class="menuBtn secondary" onclick="showScreen('typeMenu')">قائمة الأنماط</button>
+      <button class="backBtn" onclick="showScreen('startMenu')">الرجوع</button>
+    </div>
+
+    <!-- END GAME SCREEN -->
+    <div id="endGameScreen" class="menuScreen hidden">
+      <div class="trophy">🏆</div>
+      <h2 id="endGameTitle">انتهت اللعبة!</h2>
+      <div id="winnerLabel">الفائز</div>
+      <div id="winnerName"></div>
+      <div id="winnerPoints"></div>
+      <div id="finalStandings"></div>
+      <button class="menuBtn" onclick="playAgain()">العب مرة أخرى</button>
+      <button class="menuBtn" onclick="goToMainMenu()">القائمة الرئيسية</button>
+    </div>
+  </div>
+
+  <script src="app.js?v=9"></script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a2c907f7c8d592e1',t:'MTc4Njk3MzQwMg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
