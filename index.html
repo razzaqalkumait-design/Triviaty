@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Tajawal:wght@300;400;500;700;900&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="styles.css?v=9">
+  <link rel="stylesheet" href="styles.css?v=13">
 </head>
 <body>
 
@@ -43,6 +43,15 @@
     </div>
   </div>
 
+  <!-- Clear history confirmation modal -->
+  <div id="historyConfirmModal" class="modalOverlay hidden">
+    <div class="modalBox">
+      <h3 class="modalTitle">هل أنت متأكد من مسح السجل بالكامل؟</h3>
+      <button class="menuBtn secondary danger" onclick="confirmClearHistory()">نعم، مسح</button>
+      <button class="menuBtn secondary" onclick="cancelClearHistory()">إلغاء</button>
+    </div>
+  </div>
+
   <div class="app">
     <h1>TRIVIATY</h1>
 
@@ -51,6 +60,7 @@
       <h2>مرحباً</h2>
       <button class="menuBtn" onclick="showScreen('typeMenu')">ابدأ اللعبة</button>
       <button class="menuBtn secondary" onclick="openOptions()">خيارات</button>
+      <button class="menuBtn secondary" onclick="openHistory()">السجل</button>
       <button class="menuBtn secondary danger" onclick="exitGame()">خروج</button>
     </div>
 
@@ -71,6 +81,14 @@
           <div class="segGroup" id="roundsGroup"></div>
         </div>
       </div>
+      <button class="backBtn" onclick="showScreen('startMenu')">الرجوع</button>
+    </div>
+
+    <!-- HISTORY -->
+    <div id="historyScreen" class="menuScreen hidden">
+      <h2>سجل الألعاب</h2>
+      <div id="historyList"></div>
+      <button id="clearHistoryBtn" class="menuBtn secondary danger" onclick="clearHistory()" style="display:none;">مسح السجل</button>
       <button class="backBtn" onclick="showScreen('startMenu')">الرجوع</button>
     </div>
 
@@ -175,6 +193,7 @@
       <div id="timerBox"></div>
       <button id="skipBtn" onclick="skipTimer()" style="display:none;">انهاء الوقت</button>
       <div id="board"></div>
+      <button id="randomPickBtn" onclick="pickRandomQuestion()" style="display:none;">🎲 سؤال عشوائي (المضيف)</button>
       <p id="questionBox"></p>
       <p id="answerBox"></p>
       <div id="teamButtons" style="display:none;"></div>
@@ -306,6 +325,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=9"></script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a2c907f7c8d592e1',t:'MTc4Njk3MzQwMg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+  <script src="app.js?v=13"></script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a2c977bdfbb492e1',t:'MTc4Njk3Nzk4MQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
