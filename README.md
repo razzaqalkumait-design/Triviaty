@@ -1,0 +1,2 @@
+# Triviaty
+A trivia game
