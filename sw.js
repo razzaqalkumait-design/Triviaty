@@ -1,5 +1,5 @@
 // Triviaty offline cache — installs the game as an app and works without internet
-const CACHE = "triviaty-v11";
+const CACHE = "triviaty-v20";
 const ASSETS = [
   "./index.html",
   "./styles.css",
@@ -32,14 +32,17 @@ self.addEventListener("fetch", event => {
   if (url.origin !== location.origin) return; // never touch external fonts/CDNs
   if (event.request.method !== "GET") return;
 
-  // The page itself: NETWORK-FIRST so players always get the newest index.html
+  // Page + data files: NETWORK-FIRST so players always get the newest version
   // when online (falls back to the cached copy offline).
-  if (event.request.mode === "navigate") {
+  const isJson = url.pathname.endsWith(".json");
+  if (event.request.mode === "navigate" || isJson) {
     event.respondWith(
       fetch(event.request)
         .then(response => {
-          const copy = response.clone();
-          caches.open(CACHE).then(cache => cache.put(event.request, copy));
+          if (response && response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE).then(cache => cache.put(event.request, copy));
+          }
           return response;
         })
         .catch(() => caches.match(event.request).then(cached => cached || caches.match("./index.html")))
