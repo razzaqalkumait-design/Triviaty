@@ -15,11 +15,16 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Tajawal:wght@300;400;500;700;900&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="styles.css?v=13">
+  <link rel="stylesheet" href="styles.css?v=19">
 </head>
 <body>
 
   <canvas id="confettiCanvas"></canvas>
+
+  <!-- On-screen error reporter (hidden unless something breaks) -->
+  <div id="errorBanner" class="hidden">
+    <div id="errorBannerText">⚠️ حدث خطأ غير متوقع</div>
+  </div>
 
   <!-- Mid-game options button -->
   <button id="gameOptionsBtn" class="gameOptionsBtn hidden" onclick="openGameOptions()">⚙️</button>
@@ -58,6 +63,7 @@
     <!-- START MENU -->
     <div id="startMenu" class="menuScreen">
       <h2>مرحباً</h2>
+      <div id="dataStatus" class="dataStatus"></div>
       <button class="menuBtn" onclick="showScreen('typeMenu')">ابدأ اللعبة</button>
       <button class="menuBtn secondary" onclick="openOptions()">خيارات</button>
       <button class="menuBtn secondary" onclick="openHistory()">السجل</button>
@@ -197,6 +203,18 @@
       <p id="questionBox"></p>
       <p id="answerBox"></p>
       <div id="teamButtons" style="display:none;"></div>
+
+      <!-- SUDDEN DEATH PANEL -->
+      <div id="suddenDeathPanel" class="hidden">
+        <div class="sdBox">
+          <div class="sdTitle">⚡ السؤال النهائي</div>
+          <div class="sdSubtitle">تعادل! أول إجابة صحيحة تحسم الفوز</div>
+          <p id="sdQuestionBox"></p>
+          <button id="sdRevealBtn" class="sdRevealBtn" onclick="revealSuddenDeathAnswer()">كشف الإجابة</button>
+          <div id="sdAnswerBox" class="hidden"></div>
+        </div>
+        <div id="sdButtons"></div>
+      </div>
     </div>
 
     <!-- THIRTY CHALLENGE: RULES -->
@@ -325,6 +343,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=13"></script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a2c977bdfbb492e1',t:'MTc4Njk3Nzk4MQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+  <script src="app.js?v=19"></script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a2d05d603bbf92e3',t:'MTc4NzA1MDMwMQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
