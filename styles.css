@@ -50,6 +50,16 @@
     .menuBtn.secondary:active { transform: translateY(2px); box-shadow: none; }
     .menuBtn.secondary.danger { border-color: var(--hot); color: var(--hot); }
 
+    /* ---- HISTORY ---- */
+    #historyList { max-width: 340px; margin: 0 auto 20px; text-align: right; }
+    .historyRow {
+      background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+      padding: 12px 16px; margin: 8px 0; text-align: right;
+    }
+    .historyTitle { font-family: 'Tajawal', sans-serif; font-weight: 700; font-size: 15px; color: var(--text); }
+    .historySub { font-family: 'Tajawal', sans-serif; font-size: 13px; color: var(--text-dim); margin-top: 3px; }
+    .historyEmpty { color: var(--text-dim); padding: 30px 0; font-size: 15px; }
+
     /* ---- SOLO MODE ---- */
     .soloRules { text-align: right; direction: rtl; max-width: 340px; margin: 0 auto 20px; }
     .soloRules p { color: var(--text-dim); font-size: 15px; line-height: 1.7; margin: 8px 0; }
@@ -100,6 +110,70 @@
       font-weight: 900; font-size: 16px; color: var(--gold); animation: popIn .4s ease;
     }
     #soloOverBest { color: var(--text-dim); margin-bottom: 24px; font-size: 15px; }
+
+    /* ---- DATA STATUS LINE ---- */
+    .dataStatus { max-width: 340px; margin: -8px auto 14px; font-size: 13px; min-height: 18px; }
+    .dataStatus.ok { color: rgba(56, 226, 125, .75); }
+    .dataStatus.bad { color: var(--hot); font-weight: 700; }
+
+    /* ---- SUDDEN DEATH ---- */
+    #suddenDeathPanel { margin: 18px 0; animation: popIn .35s ease; }
+    .sdBox {
+      max-width: 420px; margin: 0 auto 14px; padding: 22px 16px;
+      background: linear-gradient(180deg, rgba(255, 201, 60, .1), rgba(255, 201, 60, .02) 65%), var(--panel);
+      border: 2px solid var(--gold); border-radius: 16px;
+      box-shadow: 0 0 28px rgba(255, 201, 60, .3), inset 0 0 40px rgba(255, 201, 60, .05);
+      animation: sdGlow 1.6s ease-in-out infinite;
+    }
+    @keyframes sdGlow {
+      0%, 100% { box-shadow: 0 0 22px rgba(255, 201, 60, .22), inset 0 0 40px rgba(255, 201, 60, .05); }
+      50% { box-shadow: 0 0 40px rgba(255, 201, 60, .45), inset 0 0 40px rgba(255, 201, 60, .08); }
+    }
+    .sdTitle {
+      font-family: 'Tajawal', sans-serif; font-weight: 900; font-size: 16px; color: var(--gold);
+      letter-spacing: .5px; margin-bottom: 4px; text-shadow: 0 0 14px rgba(255, 201, 60, .55);
+    }
+    .sdSubtitle { font-family: 'Tajawal', sans-serif; font-size: 13px; color: var(--text-dim); margin-bottom: 12px; }
+    #sdQuestionBox {
+      font-family: 'Tajawal', sans-serif; font-weight: 700; font-size: 20px; line-height: 1.6;
+      margin: 0; padding: 0 4px; direction: rtl; unicode-bidi: embed;
+    }
+    .sdRevealBtn {
+      margin-top: 14px; padding: 8px 18px;
+      font-family: 'Tajawal', sans-serif; font-weight: 700; font-size: 14px;
+      color: var(--gold); background: rgba(255, 201, 60, .08);
+      border: 1px dashed var(--gold-dim); border-radius: 999px; cursor: pointer;
+    }
+    .sdRevealBtn:active { opacity: .6; }
+    #sdAnswerBox {
+      margin: 12px 0 0; padding: 12px;
+      background: rgba(56, 226, 125, .08); border: 1px solid var(--success); border-radius: 10px;
+      font-family: 'Tajawal', sans-serif; font-weight: 900; font-size: 18px; color: var(--success);
+      direction: rtl; unicode-bidi: embed; animation: popIn .25s ease;
+    }
+    #sdButtons { max-width: 320px; margin: 0 auto; }
+    .sdBtn {
+      display: block; width: 100%; margin: 10px auto; padding: 14px 20px;
+      font-family: 'Tajawal', sans-serif; font-weight: 700; font-size: 17px;
+      color: var(--stage); background: var(--gold); border: none; border-radius: 12px; cursor: pointer;
+      box-shadow: 0 4px 0 var(--gold-dim), 0 8px 20px rgba(255, 201, 60, .25);
+      transition: transform .08s ease, box-shadow .08s ease;
+    }
+    .sdBtn:active { transform: translateY(4px); box-shadow: 0 0 0 var(--gold-dim), 0 4px 10px rgba(255, 201, 60, .2); }
+    .sdBtn.nobody {
+      background: transparent; color: var(--gold); border: 2px solid var(--gold);
+      box-shadow: none;
+    }
+    .sdBtn.nobody:active { transform: translateY(2px); }
+
+    /* ---- ERROR BANNER ---- */
+    #errorBanner {
+      position: fixed; left: 12px; right: 12px; bottom: calc(14px + env(safe-area-inset-bottom));
+      z-index: 200; padding: 12px 16px;
+      background: rgba(255, 61, 104, .15); border: 1px solid var(--hot); border-radius: 12px;
+      font-family: 'Tajawal', sans-serif; font-weight: 700; font-size: 14px; color: var(--hot);
+      text-align: center; pointer-events: none;
+    }
 
     /* ---- MID-GAME OPTIONS ---- */
     .gameOptionsBtn {
