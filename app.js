@@ -57,12 +57,63 @@
     const shouldTriggerEvent = points => isWickedMode() && [300, 400, 500].includes(points);
     const displayEvent = name => EVENT_MESSAGES[name] || "";
 
-    fetch("questions.json")
-      .then(res => res.json())
-      .then(data => {
-        questions = data;
-        allQuestionGroups = [...new Set(questions.map(q => q.group))].filter(Boolean);
-      });
+    let questionsReady = false;
+    let questionsError = null;
+    let questionsLoadAttempts = 0;
+    let soloDataLoaded = false;
+    let thirtyDataLoaded = false;
+
+    // Shows on the start menu which data files loaded — instantly reveals a
+    // missing/misnamed questions.json instead of a mysterious empty game.
+    function refreshDataStatus() {
+      const el = document.getElementById("dataStatus");
+      if (!el) return;
+      const missing = [];
+      if (!questionsReady) {
+        missing.push(questionsError ? "questions.json — " + questionsError.message : "questions.json");
+      }
+      if (!soloDataLoaded) missing.push("solo.json");
+      if (!thirtyDataLoaded) missing.push("thirty-categories.json");
+      if (missing.length) {
+        el.className = "dataStatus bad";
+        el.innerText = "⚠️ مشكلة في البيانات: " + missing.join(" | ");
+      } else {
+        el.className = "dataStatus ok";
+        el.innerText = "✔ البيانات جاهزة";
+      }
+    }
+
+    function loadQuestions() {
+      if (questionsLoadAttempts >= 3) return;
+      questionsLoadAttempts++;
+      fetch("questions.json", { cache: "no-store" })
+        .then(res => {
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          return res.json();
+        })
+        .then(data => {
+          // Accept common shapes: a plain array, or { questions: [...] }
+          const arr = Array.isArray(data) ? data : (data && Array.isArray(data.questions) ? data.questions : null);
+          if (!arr || !arr.length) throw new Error("الملف فارغ أو ليس قائمة أسئلة");
+          // Only group + points are required. Randomized questions keep their text in
+          // the nested "questions" array instead of a top-level "question" field.
+          const usable = arr.filter(q => q && q.group != null && q.points != null &&
+            (q.question != null || (q.isRandomized && Array.isArray(q.questions) && q.questions.length)));
+          if (!usable.length) throw new Error("لا يوجد سؤال صالح — المطلوب: group و points و question");
+          questions = usable;
+          allQuestionGroups = [...new Set(usable.map(q => q.group))].filter(Boolean);
+          questionsReady = true;
+          questionsError = null;
+          refreshDataStatus();
+        })
+        .catch(err => {
+          questionsError = err;
+          console.error("questions.json فشل التحميل:", err);
+          if (questionsLoadAttempts < 3) setTimeout(loadQuestions, 2500); // retry a couple of times
+          refreshDataStatus();
+        });
+    }
+    loadQuestions();
 
     function getRandomEvent(teamNum) {
       if (!isWickedMode()) return null;
@@ -90,8 +141,18 @@
       "thirtyRulesScreen", "thirtyCategoryScreen", "thirtyGameScreen", "endGameScreen"];
 
     function showScreen(screenId) {
-      ALL_SCREENS.forEach(id => document.getElementById(id).classList.add("hidden"));
-      document.getElementById(screenId).classList.remove("hidden");
+      // Defensive: never let a missing screen element blank the whole app
+      ALL_SCREENS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add("hidden");
+      });
+      const target = document.getElementById(screenId);
+      if (target) target.classList.remove("hidden");
+      // A fresh game always starts on the board — never with a leftover sudden-death panel
+      if (screenId === "gameScreen") {
+        const panel = document.getElementById("suddenDeathPanel");
+        if (panel) panel.classList.add("hidden");
+      }
       const dockedBars = ["groupsStickyBar", "thirtyStickyBar"];
       if (screenId !== "questionGroupsScreen" && screenId !== "thirtyCategoryScreen") {
         dockedBars.forEach(id => {
@@ -234,7 +295,8 @@
 
     fetch("solo.json")
       .then(res => res.json())
-      .then(data => { soloQuestions = data; });
+      .then(data => { soloQuestions = data; soloDataLoaded = true; refreshDataStatus(); })
+      .catch(() => { refreshDataStatus(); });
 
     function getSoloBest() {
       try { return parseInt(localStorage.getItem("triviatySoloBest"), 10) || 0; } catch (e) { return 0; }
@@ -822,6 +884,14 @@
       selectedGroups = [];
       const container = document.getElementById("groupsContainer");
       container.innerHTML = "";
+      if (!questions.length) {
+        document.getElementById("groupsHint").innerText =
+          "⚠️ لم يتم تحميل الأسئلة (questions.json مفقود أو فارغ). حدّث الصفحة أو تأكد من رفع الملف.";
+        document.getElementById("groupsStickyBar").classList.add("hidden");
+        document.getElementById("groupsStickyBar").classList.remove("visible");
+        showScreen("questionGroupsScreen");
+        return;
+      }
       document.getElementById("groupsHint").innerText = "اختر من مجموعتين الى ثمان مجموعات";
 
       const groupImages = {
@@ -865,6 +935,10 @@
 
     function startGameWithSelectedGroups() {
       selectedGroups = [...document.querySelectorAll("#groupsContainer input[type='checkbox']:checked")].map(cb => cb.value);
+      if (!questions.length) {
+        alert("لم يتم تحميل الأسئلة بعد — تأكد من وجود questions.json ثم حدّث الصفحة");
+        return;
+      }
       const minGroups = effectiveMinGroups();
       if (selectedGroups.length < minGroups) { alert(`الرجاء اختيار ${minGroups} مجموعات على الأقل`); return; }
       if (selectedGroups.length > MAX_GROUPS) { alert(`الرجاء اختيار ${MAX_GROUPS} مجموعات كحد أقصى`); return; }
@@ -912,6 +986,11 @@
     // ---- GAME BOARD ----
     function buildBoard() {
       const pool = questions.filter(q => selectedGroups.includes(q.group));
+      if (!pool.length) {
+        document.getElementById("board").innerHTML =
+          "<p style=\"color: var(--text-dim); padding: 30px 10px;\">لا توجد أسئلة للفئات المختارة — ارجع واختر فئات أخرى</p>";
+        return;
+      }
       shuffledCategories = shuffleArray([...new Set(pool.map(q => q.group))].filter(Boolean));
 
       const head = shuffledCategories.map(group => `<th>${group}</th>`).join("");
@@ -947,7 +1026,8 @@
       document.getElementById("board").style.display = "none";
       document.querySelector(".scores").style.display = "none";
       document.getElementById("turnBanner").style.display = "none";
-      document.getElementById("randomPickBtn").style.display = "none";
+      const rpBtn = document.getElementById("randomPickBtn");
+      if (rpBtn) rpBtn.style.display = "none";
 
       document.getElementById("questionBox").innerText = currentQuestion.question;
       document.getElementById("answerBox").innerText = "";
@@ -1190,7 +1270,8 @@
       document.getElementById("teamButtons").style.display = "none";
       document.getElementById("skipBtn").style.display = "none";
       document.getElementById("timerBox").innerText = "";
-      document.getElementById("randomPickBtn").style.display = "none";
+      const rpBtn = document.getElementById("randomPickBtn");
+      if (rpBtn) rpBtn.style.display = "none";
 
       const entries = computeStandings();
       const top = entries[0].points;
@@ -1206,11 +1287,12 @@
 
     function computeStandings() {
       return Object.keys(scores)
-        .map(key => ({ name: teamNames[key], points: scores[key] }))
+        .map(key => ({ key, name: teamNames[key], points: scores[key] }))
         .sort((a, b) => b.points - a.points);
     }
 
     function renderEndScreen(winnerName, winnerPoints, isTie) {
+      hideSuddenDeathPanel();
       const entries = computeStandings();
       document.getElementById("winnerLabel").innerText = isTie ? "🤝 تعادل!" : "🏆 الفائز";
       document.getElementById("winnerName").innerText = winnerName;
@@ -1235,18 +1317,38 @@
     // ---- SUDDEN DEATH (draw breaker) ----
     let suddenDeathState = null;
 
+    function hideSuddenDeathPanel() {
+      const panel = document.getElementById("suddenDeathPanel");
+      if (!panel) return;
+      panel.classList.add("hidden");
+      document.getElementById("sdQuestionBox").innerText = "";
+      document.getElementById("sdAnswerBox").classList.add("hidden");
+      document.getElementById("sdAnswerBox").innerText = "";
+      document.getElementById("sdRevealBtn").classList.remove("hidden");
+      document.getElementById("sdButtons").innerHTML = "";
+    }
+
+    // Resolves the actual question text/answer, including isRandomized questions
+    function resolveSuddenDeathQuestion(q) {
+      if (q.isRandomized && q.questions && q.questions.length) {
+        const sub = q.questions[Math.floor(Math.random() * q.questions.length)];
+        return { question: sub.template, answer: sub.answer, group: q.group, points: q.points };
+      }
+      return { question: q.question, answer: q.answer, group: q.group, points: q.points };
+    }
+
     function startSuddenDeath(winners) {
       suddenDeathState = {
-        contenders: winners.map(w => {
-          const key = Object.keys(teamNames).find(k => teamNames[k] === w.name);
-          return { name: w.name, key };
-        }),
+        contenders: winners.map(w => ({ name: w.name, key: w.key })),
         usedKeys: new Set()
       };
       document.getElementById("board").style.display = "none";
       document.querySelector(".scores").style.display = "none";
       document.getElementById("turnBanner").style.display = "none";
-      document.getElementById("questionBox").innerText = "⚡ تعادل! موت مفاجئ — أول إجابة صحيحة تحسم الفوز";
+      document.getElementById("questionBox").innerText = "";
+      document.getElementById("answerBox").innerText = "";
+      document.getElementById("teamButtons").style.display = "none";
+      document.getElementById("suddenDeathPanel").classList.remove("hidden");
       sfx("event");
       nextSuddenDeathQuestion();
     }
@@ -1256,10 +1358,11 @@
       // 500-point questions first, then fall back to easier tiers
       let q = null;
       for (const pts of [500, 400, 300, 200, 100]) {
-        const pool = questions.filter(x =>
-          selectedGroups.includes(x.group) && x.points === pts &&
-          !suddenDeathState.usedKeys.has(x.group + "|" + x.points + "|" + x.question)
-        );
+        const pool = questions.filter(x => {
+          if (!selectedGroups.includes(x.group) || x.points !== pts) return false;
+          const resolved = resolveSuddenDeathQuestion(x);
+          return !suddenDeathState.usedKeys.has(x.group + "|" + x.points + "|" + resolved.question);
+        });
         if (pool.length) {
           q = pool[Math.floor(Math.random() * pool.length)];
           break;
@@ -1273,16 +1376,28 @@
         return;
       }
 
-      suddenDeathState.usedKeys.add(q.group + "|" + q.points + "|" + q.question);
-      currentQuestion = q;
-      document.getElementById("questionBox").innerText = q.question;
-      document.getElementById("answerBox").innerText = "";
-      document.getElementById("teamButtons").innerHTML =
+      const resolved = resolveSuddenDeathQuestion(q);
+      suddenDeathState.usedKeys.add(q.group + "|" + q.points + "|" + resolved.question);
+      currentQuestion = resolved;
+      document.getElementById("sdQuestionBox").innerText = resolved.question;
+      // Reset the answer reveal for the new question
+      document.getElementById("sdRevealBtn").classList.remove("hidden");
+      const answerBox = document.getElementById("sdAnswerBox");
+      answerBox.classList.add("hidden");
+      answerBox.innerText = "";
+      document.getElementById("sdButtons").innerHTML =
         suddenDeathState.contenders.map((c, i) =>
-          `<button class="teamBtn" onclick="suddenDeathWin(${i})">${c.name} أجاب صحيحاً</button>`
+          `<button class="sdBtn" onclick="suddenDeathWin(${i})">${c.name} أجاب صحيحاً</button>`
         ).join("") +
-        `<button class="teamBtn" onclick="suddenDeathNobody()">لا أحد أجاب</button>`;
-      document.getElementById("teamButtons").style.display = "block";
+        `<button class="sdBtn nobody" onclick="suddenDeathNobody()">لا أحد أجاب</button>`;
+    }
+
+    function revealSuddenDeathAnswer() {
+      if (!suddenDeathState || !currentQuestion) return;
+      document.getElementById("sdAnswerBox").innerText = "الإجابة: " + currentQuestion.answer;
+      document.getElementById("sdAnswerBox").classList.remove("hidden");
+      document.getElementById("sdRevealBtn").classList.add("hidden");
+      sfx("tap");
     }
 
     function suddenDeathWin(idx) {
@@ -1328,9 +1443,17 @@
       rouletteState = null;
       soloState = null;
       suddenDeathState = null;
+      hideSuddenDeathPanel();
       hideThirtyAnswers();
       stopConfetti();
       document.getElementById("board").innerHTML = "";
+      // Sudden death hides these directly via inline style, which survives
+      // past resetGameState() unless cleared here explicitly.
+      document.getElementById("board").style.display = "";
+      document.querySelector(".scores").style.display = "";
+      document.getElementById("turnBanner").style.display = "";
+      const rpBtn = document.getElementById("randomPickBtn");
+      if (rpBtn) rpBtn.style.display = "";
     }
 
     function playAgain() {
@@ -1374,7 +1497,8 @@
 
     fetch("thirty-categories.json")
       .then(res => res.json())
-      .then(data => { thirtyQuestions = data; });
+      .then(data => { thirtyQuestions = data; thirtyDataLoaded = true; refreshDataStatus(); })
+      .catch(() => { refreshDataStatus(); });
 
     function showThirtyChallenge() {
       lastModeRequested = "thirty";
@@ -1794,12 +1918,43 @@
       if (confettiRunning) resizeConfettiCanvas();
     });
 
+    // ---- FILE VERSION INTEGRITY CHECK ----
+    // If index.html and app.js are from different versions, screens go missing and
+    // the game can look "empty". Detect it early and tell the user what to do.
+    window.addEventListener("load", function() {
+      const missing = ALL_SCREENS.filter(id => !document.getElementById(id));
+      if (missing.length) {
+        alert("⚠️ ملفات اللعبة غير متطابقة (نسخة قديمة من index.html). ارفع كل الملفات الجديدة معاً ثم حدّث الصفحة.");
+      }
+      if (!questions.length && questionsError) {
+        showErrorBanner("لم يتم تحميل الأسئلة: " + questionsError.message + " — تأكد من رفع questions.json");
+      }
+      refreshDataStatus();
+    });
+
+    // ---- ON-SCREEN ERROR REPORTER ----
+    // Instead of a silent blank screen, show the real error so it can be fixed.
+    function showErrorBanner(message) {
+      const banner = document.getElementById("errorBanner");
+      const text = document.getElementById("errorBannerText");
+      if (!banner || !text) return;
+      text.innerText = "⚠️ " + message;
+      banner.classList.remove("hidden");
+    }
+
+    window.addEventListener("error", function(e) {
+      showErrorBanner("خطأ: " + (e.message || "غير معروف"));
+    });
+    window.addEventListener("unhandledrejection", function(e) {
+      showErrorBanner("خطأ في التحميل: " + ((e.reason && e.reason.message) || "غير معروف"));
+    });
+
     // Install as an app (works on https or localhost; fails silently otherwise).
     // When a NEW version of the app is cached, reload once automatically so
     // players never get stuck on an old version.
     if ("serviceWorker" in navigator) {
       // The ?v= query forces the browser AND CDNs to fetch a fresh sw.js on update
-      navigator.serviceWorker.register("sw.js?v=13").catch(() => {});
+      navigator.serviceWorker.register("sw.js?v=20").catch(() => {});
       try {
         navigator.serviceWorker.addEventListener("controllerchange", () => {
           if (!sessionStorage.getItem("triviatyReloaded")) {
